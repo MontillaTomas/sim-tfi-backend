@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 class GeneradorPseudoaleatorio(ABC):
     @abstractmethod
-    def generar(self):
+    def obtener_generador(self):
         """
         Generador infinito que produce números pseudoaleatorios en [0, 1).
         :yield: Un número pseudoaleatorio.
@@ -17,7 +17,7 @@ class GeneradorLehmer(GeneradorPseudoaleatorio):
         self.t = t
         self.k = len(str(t))  # Número de dígitos de t
 
-    def generar(self):
+    def obtener_generador(self):
         """
         Generador infinito que produce números pseudoaleatorios usando el método de Lehmer por dígitos.
         :yield: Un número pseudoaleatorio en el rango [0, 1).
@@ -42,7 +42,7 @@ def main():
     t = int(input("Ingrese el valor de t [default=73]: ") or 73)
 
     generador = GeneradorLehmer(semilla, t)
-    generador_iter = generador.generar()
+    generador_iter = generador.obtener_generador()
 
     print("\nPresione Enter para generar un número pseudoaleatorio.")
     print("Escriba 'q' o 'Q' para salir.\n")
