@@ -1,3 +1,4 @@
+import uvicorn
 from fastapi import FastAPI, status
 
 from app.repository.repositorio_tratamiento_fitosanitario import (
@@ -21,3 +22,7 @@ def obtener_tratamientos_sanitarios():
     Endpoint para obtener todos los tratamientos fitosanitarios.
     """
     return repositorio.obtener_todos()
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
