@@ -1,5 +1,6 @@
 import uvicorn
 from fastapi import FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.simulador import Simulador
 from app.repository.repositorio_tratamiento_fitosanitario import (
@@ -10,6 +11,14 @@ from app.schema.simulador import SimuladorInputSchema
 from app.schema.tratamiento_fitosanitario import TratamientoFitosanitarioSchema
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 repositorio = RepositorioTratamientoFitosanitario()
 simulador = Simulador()
