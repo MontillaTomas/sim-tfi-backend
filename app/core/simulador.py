@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from arbol import Arbol
 from dia import Dia
@@ -63,10 +63,48 @@ class Simulador:
         # Realizo el muestreo para el día inicial y lo agrego a los resultados
         self._realizar_muestreo(arboles_a_observar)
         grado_ataque_inicial = self._calcular_grado_ataque_promedio(arboles_a_observar)
-        resultados.append(
-            Dia(fecha_inicio_dt, grado_ataque_inicial, len(arboles_a_observar))
+        dia_calido = self._es_dia_calido(fecha_inicio_dt)
+        dia_humedo = self._es_dia_humedo(fecha_inicio_dt)
+        dia_cero = Dia(
+            fecha_inicio_dt,
+            grado_ataque_inicial,
+            len(arboles_a_observar),
+            dia_humedo,
+            dia_calido,
         )
+        resultados.append(dia_cero)
         print(resultados[0])
+
+        # Simulo la propagación del ataque y la aplicación del tratamiento
+        for dia in range(1, dias_hasta_floracion):
+            fecha_actual = fecha_inicio_dt + timedelta(days=dia)
+            # Obtengo puntos según el día húmedo o cálido y la fecha
+            puntos_dia = 0
+            dia_calido = self._es_dia_calido(fecha_actual)
+            dia_humedo = self._es_dia_humedo(fecha_actual)
+            puntos_dia += 1 if dia_calido else 0
+            puntos_dia += 1 if dia_humedo else 0
+            # Calculo puntos para determinar la evolución del ataque para cada árbol observado
+            for arbol in arboles_a_observar:
+                puntos = puntos_dia
+                # Sumo puntos según la posibilidad de eclosión del 0%, 50% o 100% de los huevos
+                puntos += self._obtener_puntos_por_eclosion()
+                # Sumo puntos según el grado de ataque del árbol
+                puntos += self._obtener_puntos_segun_grado_ataque(arbol)
+                # Determino el nuevo grado de ataque del árbol
+                self._determinar_nuevo_grado_ataque(puntos, arbol)
+            # Calculo el grado de ataque promedio de los árboles observados
+            # Y agrego el día a los resultados
+            grado_ataque_dia = self._calcular_grado_ataque_promedio(arboles_a_observar)
+            dia = Dia(
+                fecha_actual,
+                grado_ataque_dia,
+                len(arboles_a_observar),
+                dia_humedo,
+                dia_calido,
+            )
+            print(f"\n{dia}")
+            resultados.append(dia)
 
     def _siguiente_aleatorio(self) -> float:
         """
@@ -117,7 +155,82 @@ class Simulador:
         :return: Grado de ataque promedio.
         """
         total_grado = sum(arbol.grado_ataque for arbol in arboles)
-        return total_grado // len(arboles) if arboles else 0
+        return total_grado / len(arboles) if arboles else 0
+
+    def _obtener_puntos_por_eclosion(self) -> int:
+        """
+        Determina los puntos por eclosión de huevos.
+        :return: 0, 1 o 2 puntos según la probabilidad.
+        """
+        u = self._siguiente_aleatorio()
+        if u <= 1 / 3:
+            return 0
+        elif u <= 2 / 3:
+            return 1
+        else:
+            return 2
+
+    def _es_dia_humedo(self, fecha: datetime) -> bool:
+        """
+        Verifica si el día es húmedo según la fecha.
+        :param fecha: Fecha a verificar.
+        :return: True si es un día húmedo, False en caso contrario.
+        """
+        u = self._siguiente_aleatorio()
+        if fecha.month == 8:
+            return u <= 0.35
+        else:
+            return u <= 0.38
+
+    def _es_dia_calido(self, fecha: datetime) -> bool:
+        """
+        Verifica si el día es cálido según la fecha.
+        :param fecha: Fecha a verificar.
+        :return: True si es un día cálido, False en caso contrario.
+        """
+        u = self._siguiente_aleatorio()
+        if fecha.month == 8:
+            return u <= 0.25
+        else:
+            return u <= 0.8
+
+    def _obtener_puntos_segun_grado_ataque(self, arbol: Arbol) -> int:
+        """
+        Obtiene puntos según el grado de ataque del árbol.
+        :param arbol: Árbol a evaluar.
+        :return: Puntos según el grado de ataque.
+        """
+        if arbol.grado_ataque == 0:
+            return 0
+        elif arbol.grado_ataque == 1:
+            return 1
+        elif arbol.grado_ataque == 2:
+            return 2
+        elif arbol.grado_ataque == 3:
+            return 3
+        else:
+            return 4
+
+    def _determinar_nuevo_grado_ataque(self, puntos: int, arbol: Arbol) -> None:
+        """
+        Calcula el nuevo grado de ataque basado en los puntos obtenidos. Si el grado de ataque es menor a 4, se puede incrementar.
+        :param puntos: Puntos obtenidos.
+        :return: Nuevo grado de ataque.
+        """
+        u = self._siguiente_aleatorio()
+        if arbol.grado_ataque < 4:
+            if puntos <= 2:
+                if u <= 0.05:
+                    arbol.grado_ataque += 1
+                elif puntos <= 4:
+                    if u <= 0.1:
+                        arbol.grado_ataque += 1
+            elif puntos <= 6:
+                if u <= 0.2:
+                    arbol.grado_ataque += 1
+            elif puntos <= 8:
+                if u <= 0.5:
+                    arbol.grado_ataque += 1
 
 
 if __name__ == "__main__":
