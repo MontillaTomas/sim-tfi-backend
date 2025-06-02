@@ -1,10 +1,10 @@
 import math
 from datetime import datetime, timedelta
 
-from arbol import Arbol
-from dia import Dia
-from generador_pseudo_aleatorio import GeneradorLehmer
-from tratamiento_fitosanitario import TratamientoFitosanitario
+from app.core.arbol import Arbol
+from app.core.dia import Dia
+from app.core.generador_pseudo_aleatorio import GeneradorLehmer
+from app.core.tratamiento_fitosanitario import TratamientoFitosanitario
 
 
 class Simulador:
