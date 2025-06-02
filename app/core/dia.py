@@ -5,7 +5,7 @@ class Dia:
     def __init__(
         self,
         fecha: datetime,
-        grado_ataque: int,
+        grado_ataque: float,
         arboles_observados: int,
         dia_humedo: bool = False,
         dia_calido: bool = False,
