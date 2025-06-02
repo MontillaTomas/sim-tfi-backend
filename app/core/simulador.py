@@ -1,3 +1,4 @@
+import math
 from datetime import datetime, timedelta
 
 from arbol import Arbol
@@ -16,7 +17,7 @@ class Simulador:
         tratamiento: TratamientoFitosanitario,
         fecha_inicio: str,
         fecha_floracion: str,
-    ):
+    ) -> list[Dia]:
         # Validaciones
         if hectareas <= 0:
             raise ValueError("El número de hectáreas debe ser mayor que cero.")
@@ -48,8 +49,11 @@ class Simulador:
             raise ValueError(
                 "La fecha de floración debe estar entre el 15 de octubre y el 15 de noviembre."
             )
-        # Inicializo la variable resultados
+        # Inicializo la variable resultados, la fecha de la última aplicación del tratamiento y
+        # los días de inmunidad de aplicar el tratamiento
         resultados = []
+        fecha_ultima_aplicacion = None
+        inmunidad = 0
 
         # Calculo días hasta la floración
         dias_hasta_floracion = (fecha_floracion_dt - fecha_inicio_dt).days
@@ -85,17 +89,86 @@ class Simulador:
             puntos_dia += 1 if dia_calido else 0
             puntos_dia += 1 if dia_humedo else 0
             # Calculo puntos para determinar la evolución del ataque para cada árbol observado
-            for arbol in arboles_a_observar:
-                puntos = puntos_dia
-                # Sumo puntos según la posibilidad de eclosión del 0%, 50% o 100% de los huevos
-                puntos += self._obtener_puntos_por_eclosion()
-                # Sumo puntos según el grado de ataque del árbol
-                puntos += self._obtener_puntos_segun_grado_ataque(arbol)
-                # Determino el nuevo grado de ataque del árbol
-                self._determinar_nuevo_grado_ataque(puntos, arbol)
+            if inmunidad == 0:
+                for arbol in arboles_a_observar:
+                    puntos = puntos_dia
+                    # Sumo puntos según la posibilidad de eclosión del 0%, 50% o 100% de los huevos
+                    puntos += self._obtener_puntos_por_eclosion()
+                    # Sumo puntos según el grado de ataque del árbol
+                    puntos += self._obtener_puntos_segun_grado_ataque(arbol)
+                    # Determino el nuevo grado de ataque del árbol
+                    self._determinar_nuevo_grado_ataque(puntos, arbol)
+            else:
+                inmunidad -= 1
             # Calculo el grado de ataque promedio de los árboles observados
-            # Y agrego el día a los resultados
             grado_ataque_dia = self._calcular_grado_ataque_promedio(arboles_a_observar)
+            # Determino si es necesario aplicar el tratamiento
+            # Consejo: Ver dfd para entender mejor la lógica de aplicación del tratamiento
+            if (
+                grado_ataque_dia >= 1.5
+                and not grado_ataque_dia >= 2
+                and tratamiento.periodo_carencia
+                == (fecha_floracion_dt - fecha_actual).days
+            ):
+                fecha_ultima_aplicacion = fecha_actual
+                self._aplicar_tratamiento(tratamiento, arboles_a_observar)
+                inmunidad = self._obtener_dias_inmunizados(tratamiento)
+                dia = Dia(
+                    fecha_actual,
+                    grado_ataque_dia,
+                    len(arboles_a_observar),
+                    dia_humedo,
+                    dia_calido,
+                    aplicacion_tratamiento_fitosanitario=True,
+                )
+                print(f"\n{dia}")
+                resultados.append(dia)
+                continue
+            elif (
+                grado_ataque_dia >= 1.5
+                and grado_ataque_dia >= 2
+                and tratamiento.periodo_carencia
+                <= (fecha_floracion_dt - fecha_actual).days
+                and fecha_ultima_aplicacion is None
+            ):
+                fecha_ultima_aplicacion = fecha_actual
+                self._aplicar_tratamiento(tratamiento, arboles_a_observar)
+                inmunidad = self._obtener_dias_inmunizados(tratamiento)
+                dia = Dia(
+                    fecha_actual,
+                    grado_ataque_dia,
+                    len(arboles_a_observar),
+                    dia_humedo,
+                    dia_calido,
+                    aplicacion_tratamiento_fitosanitario=True,
+                )
+                print(f"\n{dia} - Tratamiento aplicado")
+                resultados.append(dia)
+                continue
+            elif (
+                grado_ataque_dia >= 1.5
+                and grado_ataque_dia >= 2
+                and tratamiento.periodo_carencia
+                <= (fecha_floracion_dt - fecha_actual).days
+                and fecha_ultima_aplicacion is not None
+                and tratamiento.tiempo_entre_aplicaciones
+                <= (fecha_actual - fecha_ultima_aplicacion).days
+            ):
+                fecha_ultima_aplicacion = fecha_actual
+                self._aplicar_tratamiento(tratamiento, arboles_a_observar)
+                inmunidad = self._obtener_dias_inmunizados(tratamiento)
+                dia = Dia(
+                    fecha_actual,
+                    grado_ataque_dia,
+                    len(arboles_a_observar),
+                    dia_humedo,
+                    dia_calido,
+                    aplicacion_tratamiento_fitosanitario=True,
+                )
+                print(f"\n{dia} - Tratamiento aplicado")
+                resultados.append(dia)
+                continue
+
             dia = Dia(
                 fecha_actual,
                 grado_ataque_dia,
@@ -105,6 +178,7 @@ class Simulador:
             )
             print(f"\n{dia}")
             resultados.append(dia)
+        return resultados
 
     def _siguiente_aleatorio(self) -> float:
         """
@@ -155,7 +229,7 @@ class Simulador:
         :return: Grado de ataque promedio.
         """
         total_grado = sum(arbol.grado_ataque for arbol in arboles)
-        return total_grado / len(arboles) if arboles else 0
+        return round(total_grado / len(arboles), 4) if arboles else 0
 
     def _obtener_puntos_por_eclosion(self) -> int:
         """
@@ -231,6 +305,50 @@ class Simulador:
             elif puntos <= 8:
                 if u <= 0.5:
                     arbol.grado_ataque += 1
+
+    def _normal_entero(self, media: float, desviacion: float) -> int:
+        """
+        Genera un número entero a partir de una distribución normal con la media y desviación dadas.
+        Usa el método de Box-Muller a partir de dos valores pseudoaleatorios uniformes.
+
+        :param media: Media de la distribución normal.
+        :param desviacion: Desviación estándar de la distribución normal.
+        :return: Un número entero distribuido normalmente.
+        """
+        u1 = self._siguiente_aleatorio()
+        u2 = self._siguiente_aleatorio()
+
+        # Transformación Box-Muller
+        z = math.sqrt(-2 * math.log(u1)) * math.cos(2 * math.pi * u2)
+
+        # Escalar a la distribución deseada
+        valor = media + desviacion * z
+
+        return round(valor)
+
+    def _obtener_dias_inmunizados(self, tratamiento: TratamientoFitosanitario) -> int:
+        """
+        Obtiene el número de días de inmunidad del tratamiento.
+        :param tratamiento: Tratamiento a evaluar.
+        :return: Días de inmunidad.
+        """
+        return self._normal_entero(
+            tratamiento.media_inmunidad, tratamiento.desviacion_inmunidad
+        )
+
+    def _aplicar_tratamiento(
+        self, tratamiento: TratamientoFitosanitario, arboles: list[Arbol]
+    ) -> None:
+        """
+        Aplica el tratamiento fitosanitario a los árboles.
+        :param tratamiento: Tratamiento a aplicar.
+        :param arboles: Lista de árboles a tratar.
+        """
+        for arbol in arboles:
+            if arbol.grado_ataque - tratamiento.disminucion_grado_ataque < 0:
+                arbol.grado_ataque = 0
+            else:
+                arbol.grado_ataque -= tratamiento.disminucion_grado_ataque
 
 
 if __name__ == "__main__":
