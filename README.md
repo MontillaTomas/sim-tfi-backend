@@ -19,7 +19,7 @@
 ## Descripción del proyecto
 
 Este repositorio contiene el **backend** de la aplicación desarrollada para el Trabajo Final Integrador de la materia **Simulación**.  
-El proyecto está enfocado en la simulación del impacto de tratamientos fitosanitarios sobre una plaga que afecta al cultivo del olivo, conocida como **la cochinilla del olivio** o **parlatoria oleae**.
+El proyecto está enfocado en la simulación del impacto de tratamientos fitosanitarios sobre una plaga que afecta al cultivo del olivo, conocida como **la cochinilla del olivio** o **parlatoria oleae**, y determinar los días óptimos de aplicación del tratamiento fitosanitario seleccionado.
 
 El backend fue desarrollado utilizando **Python** y el framework **FastAPI**.
 
