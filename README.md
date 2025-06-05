@@ -121,6 +121,7 @@ Lista de objetos `DiaSchema`:
 ## Estructura de esquemas principales
 
 ### TratamientoFitosanitarioSchema
+```
 class TratamientoFitosanitarioSchema(BaseModel):
     id: int
     producto: str
@@ -129,10 +130,13 @@ class TratamientoFitosanitarioSchema(BaseModel):
     desviacion_inmunidad: int
     periodo_carencia: int
     tiempo_entre_aplicaciones: int
+```
 
 ### SimuladorInputSchema
+```
 class SimuladorInputSchema(BaseModel):
     id_tratamiento: int
     hectareas: int
     fecha_inicio: date
     fecha_floracion: date
+```
